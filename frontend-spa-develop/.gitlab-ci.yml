@@ -1,0 +1,60 @@
+stages:
+  - build
+  - deploy
+
+build:
+  stage: build
+  image: node:10-alpine
+  environment: production
+  only:
+    - master
+  script:
+    - cat .env.prod > .env
+    - npm ci
+    - npm run build
+  artifacts:
+    paths:
+      - .nuxt/
+      - dist/
+    expire_in: 1 day
+
+build-stg:
+  stage: build
+  image: node:10-alpine
+  environment: staging
+  only:
+    - develop
+  script:
+    - cat .env.stg > .env
+    - npm ci
+    - npm run build
+  artifacts:
+    paths:
+      - .nuxt/
+      - dist/
+    expire_in: 1 day
+
+deploy:
+  stage: deploy
+  image: google/cloud-sdk:alpine
+  environment: production
+  only:
+    - master
+  script:
+    - echo $SERVICE_ACCOUNT > /tmp/gcloud-key.json
+    - gcloud auth activate-service-account --key-file /tmp/gcloud-key.json
+    - gcloud config set project microerp-265008
+    - gcloud app deploy --quiet app.yml
+
+deploy-stg:
+  stage: deploy
+  image: google/cloud-sdk:alpine
+  environment: staging
+  only:
+    - develop
+  script:
+    - echo $SERVICE_ACCOUNT_STG > /tmp/gcloud-key.json
+    - gcloud auth activate-service-account --key-file /tmp/gcloud-key.json
+    - gcloud config set project microerp-stg
+    - cat dispatch.stg.yaml > dispatch.yaml
+    - gcloud app deploy --quiet app-stg.yaml

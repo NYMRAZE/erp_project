@@ -1,0 +1,68 @@
+map $sent_http_content_type $expires {
+    "text/html"                 epoch;
+    "text/html; charset=utf-8"  epoch;
+    default                     off;
+}
+
+upstream demo1.localhost {
+    server golang:8080;
+}
+
+server {
+    #ssl_certificate /etc/nginx/certs/demo.pem;
+    #ssl_certificate_key /etc/nginx/certs/demo.key;
+
+    gzip_types text/plain text/css application/json application/x-javascript
+               text/xml application/xml application/xml+rss text/javascript;
+
+    server_name demo1.localhost;
+
+    location / {
+        proxy_hide_header 'access-control-allow-origin';
+
+        if ($http_origin ~* (demo2\.localhost)) { # can be set multiple domain here example : (domain1 || domain2)
+            add_header 'Access-Control-Allow-Origin' '$http_origin' always;
+            add_header 'Access-Control-Allow-Methods' 'OPTIONS, GET, POST, DELETE, PUT';
+            add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range';
+            add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range';
+        }
+
+        proxy_redirect                      off;
+        proxy_set_header Host               $host;
+        proxy_set_header X-Real-IP          $remote_addr;
+        proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto  $scheme;
+        proxy_read_timeout          1m;
+        proxy_connect_timeout       1m;
+        proxy_pass http://demo1.localhost;
+    }
+}
+
+upstream demo2.localhost {
+    server nodejs:3000;
+}
+
+server {
+    #ssl_certificate /etc/nginx/certs/demo.pem;
+    #ssl_certificate_key /etc/nginx/certs/demo.key;
+
+    gzip_types text/plain text/css application/json application/x-javascript
+               text/xml application/xml application/xml+rss text/javascript;
+
+    server_name demo2.localhost;
+
+    location / {
+        expires $expires;
+        proxy_redirect off;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 1m;
+        proxy_connect_timeout 1m;
+        proxy_pass http://demo2.localhost;
+    }
+}

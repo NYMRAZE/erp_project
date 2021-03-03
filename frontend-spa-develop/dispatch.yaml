@@ -1,0 +1,6 @@
+dispatch:
+  - url: "www.erp.**********.vn/*"
+    service: nuxt-spa-service
+
+  - url: "erp.************.vn/*"
+    service: nuxt-spa-service
